@@ -2,20 +2,9 @@
 <html>
 <head>
   <title>LabMaster Global</title>
-  <script src="https://sdk.minepi.com/pi-sdk.js"></script>
 </head>
 <body>
   <h1>LabMaster Global</h1>
-  <button onclick="login()">Login with Pi</button>
-
-  <script>
-    Pi.init({ version: "2.0", sandbox: true });
-
-    function login() {
-      Pi.authenticate(["username"], function(auth) {
-        alert("Welcome " + auth.user.username);
-      });
-    }
-  </script>
+  <p>App is working ✅</p>
 </body>
 </html>
