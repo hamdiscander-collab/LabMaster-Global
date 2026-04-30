@@ -7,7 +7,8 @@
 
 <style>
 :root{
-  --bg:#0b1220; --card:#111c33; --muted:#1e293b; --accent:#38bdf8; --ok:#22c55e; --warn:#f59e0b; --bad:#ef4444;
+  --bg:#0b1220; --card:#111c33; --muted:#1e293b; --accent:#38bdf8;
+  --ok:#22c55e; --warn:#f59e0b; --bad:#ef4444;
 }
 *{box-sizing:border-box}
 body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:#fff}
@@ -31,13 +32,14 @@ button:hover{filter:brightness(.95)}
 .b-warn{background:rgba(245,158,11,.2);color:#f59e0b}
 .b-bad{background:rgba(239,68,68,.2);color:#ef4444}
 .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.8)}
-.modal .boxm{background:var(--card);padding:14px;border-radius:10px;width:95%;max-width:520px}
+.modal .boxm{background:var(--card);padding:14px;border-radius:10px;width:95%;max-width:560px;max-height:90vh;overflow:auto}
 .row{display:flex;gap:6px}
 .row > *{flex:1}
 hr{border:0;border-top:1px solid #2a3554;margin:10px 0}
 label{display:block;margin-top:6px}
 .inline{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
 .inline label{background:#0f172a;padding:6px 8px;border-radius:6px}
+pre{white-space:pre-wrap}
 </style>
 </head>
 
@@ -102,11 +104,9 @@ label{display:block;margin-top:6px}
     <hr>
 
     <h4>Select Tests</h4>
-    <div class="inline" id="checks">
-      <!-- checkboxes injected -->
-    </div>
+    <div class="inline" id="checks"></div>
 
-    <h4>Enter Results (values)</h4>
+    <h4>Enter Results</h4>
     <div id="inputs"></div>
 
     <button onclick="addTests()">Save Selected Tests</button>
@@ -119,7 +119,7 @@ label{display:block;margin-top:6px}
 </div>
 
 <script>
-/* ===== AUTH (local demo) ===== */
+/* ===== AUTH ===== */
 function login(){
   const u=document.getElementById('u').value;
   const p=document.getElementById('p').value;
@@ -129,29 +129,39 @@ function login(){
   } else alert('Wrong login');
 }
 
-/* ===== DATA ===== */
-const KEY='lab_offline_pro_v1';
+/* ===== STORAGE ===== */
+const KEY='lab_offline_pro_v2';
 let patients=JSON.parse(localStorage.getItem(KEY)||'[]');
 let currentIndex=null;
 
-/* ===== TEST CATALOG (editable) ===== */
+/* ===== TEST CATALOG ===== */
 const TESTS = [
+  /* CBC */
   {name:'Hemoglobin', unit:'g/dL', min:12, max:17},
   {name:'WBC', unit:'10^3/uL', min:4, max:11},
   {name:'RBC', unit:'10^6/uL', min:4, max:6},
   {name:'Platelets', unit:'10^3/uL', min:150, max:450},
-  {name:'Glucose (Fasting)', unit:'mg/dL', min:70, max:100},
-  {name:'Creatinine', unit:'mg/dL', min:0.6, max:1.3},
+
+  /* BIO */
+  {name:'Glucose', unit:'mg/dL', min:70, max:110},
   {name:'Urea', unit:'mg/dL', min:15, max:45},
+  {name:'Creatinine', unit:'mg/dL', min:0.6, max:1.3},
   {name:'Cholesterol', unit:'mg/dL', min:0, max:200},
-  {name:'Triglycerides', unit:'mg/dL', min:0, max:150},
+
+  /* LIVER */
   {name:'ALT', unit:'U/L', min:7, max:56},
   {name:'AST', unit:'U/L', min:10, max:40},
+
+  /* HORMONES */
   {name:'TSH', unit:'mIU/L', min:0.4, max:4.0},
-  {name:'Urine Analysis', unit:'-', min:null, max:null}
+
+  /* TEXT REPORTS */
+  {name:'Urine Analysis', type:'urine'},
+  {name:'Stool Analysis', type:'stool'},
+  {name:'Semen Analysis', type:'semen'}
 ];
 
-/* ===== UTIL ===== */
+/* ===== HELPERS ===== */
 function save(){ localStorage.setItem(KEY, JSON.stringify(patients)); }
 function badge(val, t){
   if(t.min==null || t.max==null || val==='' || isNaN(val)) return '';
@@ -161,7 +171,7 @@ function badge(val, t){
   return `<span class="badge b-ok">Normal</span>`;
 }
 
-/* ===== PATIENT CRUD ===== */
+/* ===== PATIENT ===== */
 function addPatient(){
   const name=document.getElementById('name').value.trim();
   const age=document.getElementById('age').value.trim();
@@ -201,15 +211,15 @@ function openP(i){
   currentIndex=i;
   const p=patients[i];
   document.getElementById('modal').style.display='flex';
-  document.getElementById('mname').innerText = p.name + '  (#'+p.pid+')';
-  document.getElementById('meta').innerText = `Age: ${p.age} | Gender: ${p.gender} | Created: ${p.created}`;
+  document.getElementById('mname').innerText = p.name + ' (#'+p.pid+')';
+  document.getElementById('meta').innerText = `Age: ${p.age} | Gender: ${p.gender}`;
   buildChecks();
   showTests();
 }
 
 function closeM(){ document.getElementById('modal').style.display='none'; }
 
-/* build checkboxes + inputs */
+/* ===== BUILD FORMS ===== */
 function buildChecks(){
   const c=document.getElementById('checks');
   const inputs=document.getElementById('inputs');
@@ -218,113 +228,133 @@ function buildChecks(){
   TESTS.forEach((t,idx)=>{
     const id='t_'+idx;
     c.innerHTML += `<label><input type="checkbox" id="${id}" value="${idx}"> ${t.name}</label>`;
-    inputs.innerHTML += `
-      <div id="in_${idx}" style="display:none">
-        <label>${t.name} ${t.unit?`(${t.unit})`:''} ${t.min!=null?`[${t.min}-${t.max}]`:''}</label>
-        <div class="row">
-          <input placeholder="Value" id="val_${idx}">
-          <input placeholder="Notes" id="note_${idx}">
-        </div>
-      </div>`;
-  });
 
-  // toggle inputs visibility
-  TESTS.forEach((t,idx)=>{
-    document.getElementById('t_'+idx).addEventListener('change', (e)=>{
-      document.getElementById('in_'+idx).style.display = e.target.checked ? 'block' : 'none';
+    if(t.type==='urine'){
+      inputs.innerHTML += `
+      <div id="in_${idx}" style="display:none">
+      <label>Urine Analysis</label>
+      <textarea id="val_${idx}" placeholder="Color:
+Appearance:
+pH:
+RBC:
+WBC:
+Bacteria:
+Crystals:
+Others:"></textarea>
+      </div>`;
+    }
+    else if(t.type==='stool'){
+      inputs.innerHTML += `
+      <div id="in_${idx}" style="display:none">
+      <label>Stool Analysis</label>
+      <textarea id="val_${idx}" placeholder="Color:
+Consistency:
+RBC:
+WBC:
+Parasites:
+Others:"></textarea>
+      </div>`;
+    }
+    else if(t.type==='semen'){
+      inputs.innerHTML += `
+      <div id="in_${idx}" style="display:none">
+      <label>Semen Analysis</label>
+      <textarea id="val_${idx}" placeholder="Volume:
+Count:
+Motility:
+Morphology:
+pH:
+Others:"></textarea>
+      </div>`;
+    }
+    else{
+      inputs.innerHTML += `
+      <div id="in_${idx}" style="display:none">
+      <label>${t.name} (${t.unit}) [${t.min}-${t.max}]</label>
+      <div class="row">
+      <input id="val_${idx}" placeholder="Value">
+      <input id="note_${idx}" placeholder="Note">
+      </div>
+      </div>`;
+    }
+
+    document.addEventListener('change',e=>{
+      if(e.target.id===id){
+        document.getElementById('in_'+idx).style.display = e.target.checked?'block':'none';
+      }
     });
   });
 }
 
-/* add selected tests with values */
+/* ===== ADD TESTS ===== */
 function addTests(){
   const p=patients[currentIndex];
   let any=false;
 
   TESTS.forEach((t,idx)=>{
     const cb=document.getElementById('t_'+idx);
-    if(cb.checked){
+    if(cb && cb.checked){
       any=true;
       const val=document.getElementById('val_'+idx).value;
-      const note=document.getElementById('note_'+idx).value;
+
       p.tests.push({
-        name:t.name, value:val, note:note, unit:t.unit,
-        min:t.min, max:t.max, date:new Date().toLocaleString()
+        name:t.name,
+        value:val,
+        unit:t.unit,
+        min:t.min,
+        max:t.max,
+        date:new Date().toLocaleString()
       });
-      // clear
+
       cb.checked=false;
       document.getElementById('in_'+idx).style.display='none';
       document.getElementById('val_'+idx).value='';
-      document.getElementById('note_'+idx).value='';
     }
   });
 
-  if(!any) return alert('Select at least one test');
+  if(!any) return alert('Select test');
   save(); showTests(); render();
 }
 
-/* show tests list */
+/* ===== SHOW ===== */
 function showTests(){
   const p=patients[currentIndex];
   const box=document.getElementById('tests');
   box.innerHTML='';
 
   p.tests.forEach(x=>{
-    box.innerHTML += `
+    if(x.unit){
+      box.innerHTML += `
       <div class="item">
         <b>${x.name}</b>
         ${badge(x.value, x)}
-        <div>Value: ${x.value||'-'} ${x.unit||''}</div>
-        ${x.note?`<div>Note: ${x.note}</div>`:''}
-        <div class="small">${x.date}</div>
+        <div>${x.value} ${x.unit}</div>
       </div>`;
+    }else{
+      box.innerHTML += `
+      <div class="item">
+        <b>${x.name}</b>
+        <pre>${x.value}</pre>
+      </div>`;
+    }
   });
 }
 
 /* ===== PRINT ===== */
 function printReport(){
   const p=patients[currentIndex];
-  const w=window.open('', '_blank');
+  const w=window.open();
 
-  const rows = p.tests.map(x=>`
-    <tr>
-      <td>${x.name}</td>
-      <td>${x.value||'-'}</td>
-      <td>${x.unit||''}</td>
-      <td>${(x.min!=null&&x.max!=null)?`${x.min}-${x.max}`:''}</td>
-      <td>${(function(){ 
-        if(x.min==null||x.max==null||x.value===''||isNaN(x.value)) return '';
-        const v=parseFloat(x.value);
-        if(v<x.min) return 'Low';
-        if(v>x.max) return 'High';
-        return 'Normal';
-      })()}</td>
-    </tr>
-  `).join('');
+  w.document.write(`<h2>Lab Report</h2><p>${p.name}</p><hr>`);
 
-  w.document.write(`
-  <html><head><title>Lab Report</title>
-  <style>
-    body{font-family:Arial;padding:20px}
-    h2{text-align:center}
-    table{width:100%;border-collapse:collapse;margin-top:10px}
-    td,th{border:1px solid #333;padding:6px;text-align:left}
-  </style>
-  </head>
-  <body>
-    <h2>LabMaster Global Report</h2>
-    <p><b>Name:</b> ${p.name}</p>
-    <p><b>ID:</b> ${p.pid}</p>
-    <p><b>Age:</b> ${p.age} | <b>Gender:</b> ${p.gender}</p>
-    <hr>
-    <table>
-      <tr><th>Test</th><th>Value</th><th>Unit</th><th>Reference</th><th>Status</th></tr>
-      ${rows}
-    </table>
-  </body></html>
-  `);
+  p.tests.forEach(x=>{
+    if(x.unit){
+      w.document.write(`<p>${x.name}: ${x.value} ${x.unit}</p>`);
+    }else{
+      w.document.write(`<pre>${x.value}</pre>`);
+    }
+  });
 
-  w.document.close();
   w.print();
 }
 
@@ -333,27 +363,22 @@ function exportData(){
   const blob = new Blob([JSON.stringify(patients,null,2)], {type:'application/json'});
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob);
-  a.download='labmaster_backup.json';
+  a.download='backup.json';
   a.click();
 }
 function importData(e){
   const f=e.target.files[0];
   if(!f) return;
   const r=new FileReader();
-  r.onload=()=>{ 
-    try{
-      const data=JSON.parse(r.result);
-      if(Array.isArray(data)){
-        patients=data; save(); render();
-        alert('Imported successfully');
-      } else alert('Invalid file');
-    }catch{ alert('Invalid JSON'); }
+  r.onload=()=>{
+    patients=JSON.parse(r.result);
+    save(); render();
   };
   r.readAsText(f);
 }
 
-/* init */
 render();
 </script>
+
 </body>
 </html>
