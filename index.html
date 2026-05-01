@@ -47,8 +47,13 @@ a{color:#38bdf8;text-decoration:none}
 
 <body>
 
+<!-- LOADER -->
+<div id="loader" style="position:fixed;inset:0;background:#0b1220;display:flex;align-items:center;justify-content:center;color:#38bdf8;font-size:20px;z-index:9999;">
+Loading LabMaster...
+</div>
+
 <!-- LOGIN -->
-<div id="login" class="modal" style="display:flex">
+<div id="login" class="modal">
   <div class="boxm">
     <h3>LabMaster Login</h3>
     <input id="u" placeholder="Username">
@@ -62,7 +67,6 @@ a{color:#38bdf8;text-decoration:none}
 
 <div class="wrap" id="app" style="display:none">
 
-  <!-- DASH -->
   <div class="top">
     <div class="box">Patients<br><b id="pc">0</b></div>
     <div class="box">Tests<br><b id="tc">0</b></div>
@@ -70,7 +74,6 @@ a{color:#38bdf8;text-decoration:none}
 
   <div class="grid">
 
-    <!-- ADD PATIENT -->
     <div class="card">
       <h3>Add Patient</h3>
       <input id="name" placeholder="Name">
@@ -87,7 +90,6 @@ a{color:#38bdf8;text-decoration:none}
       <input type="file" accept="application/json" onchange="importData(event)">
     </div>
 
-    <!-- LIST -->
     <div class="card">
       <h3>Patients</h3>
       <input id="search" onkeyup="render()" placeholder="Search by name or ID">
@@ -97,7 +99,6 @@ a{color:#38bdf8;text-decoration:none}
   </div>
 </div>
 
-<!-- MODAL PATIENT -->
 <div id="modal" class="modal">
   <div class="boxm">
     <h3 id="mname"></h3>
@@ -121,6 +122,22 @@ a{color:#38bdf8;text-decoration:none}
 </div>
 
 <script>
+/* ===== INIT AFTER LOAD ===== */
+window.addEventListener("load", () => {
+  setTimeout(() => {
+    document.getElementById("loader").style.display = "none";
+    document.getElementById("login").style.display = "flex";
+    render();
+  }, 300);
+});
+
+/* ===== PI SDK ===== */
+try {
+  Pi.init({ version: "2.0" });
+} catch(e){
+  console.log("Pi SDK not available");
+}
+
 /* ===== AUTH ===== */
 function login(){
   const u=document.getElementById('u').value;
@@ -136,218 +153,70 @@ const KEY='lab_offline_pro_v3';
 let patients=JSON.parse(localStorage.getItem(KEY)||'[]');
 let currentIndex=null;
 
-/* ===== TEST CATALOG ===== */
-const TESTS = [
-  {name:'Hemoglobin', unit:'g/dL', min:12, max:17},
-  {name:'WBC', unit:'10^3/uL', min:4, max:11},
-  {name:'RBC', unit:'10^6/uL', min:4, max:6},
-  {name:'Platelets', unit:'10^3/uL', min:150, max:450},
-  {name:'Glucose', unit:'mg/dL', min:70, max:110},
-  {name:'Urea', unit:'mg/dL', min:15, max:45},
-  {name:'Creatinine', unit:'mg/dL', min:0.6, max:1.3},
-  {name:'ALT', unit:'U/L', min:7, max:56},
-  {name:'AST', unit:'U/L', min:10, max:40},
-  {name:'TSH', unit:'mIU/L', min:0.4, max:4.0},
-  {name:'Urine Analysis', type:'text'},
-  {name:'Stool Analysis', type:'text'},
-  {name:'Semen Analysis', type:'text'}
+/* ===== TESTS ===== */
+const TESTS=[
+{name:'Hemoglobin',unit:'g/dL',min:12,max:17},
+{name:'WBC',unit:'10^3/uL',min:4,max:11},
+{name:'RBC',unit:'10^6/uL',min:4,max:6},
+{name:'Platelets',unit:'10^3/uL',min:150,max:450},
+{name:'Glucose',unit:'mg/dL',min:70,max:110},
+{name:'Urea',unit:'mg/dL',min:15,max:45},
+{name:'Creatinine',unit:'mg/dL',min:0.6,max:1.3},
+{name:'ALT',unit:'U/L',min:7,max:56},
+{name:'AST',unit:'U/L',min:10,max:40},
+{name:'TSH',unit:'mIU/L',min:0.4,max:4.0},
+{name:'Urine Analysis',type:'text'},
+{name:'Stool Analysis',type:'text'},
+{name:'Semen Analysis',type:'text'}
 ];
 
-/* ===== HELPERS ===== */
-function save(){ localStorage.setItem(KEY, JSON.stringify(patients)); }
-function badge(val, t){
-  if(t.min==null || t.max==null || val==='' || isNaN(val)) return '';
-  const v=parseFloat(val);
-  if(v<t.min) return `<span class="badge b-warn">Low</span>`;
-  if(v>t.max) return `<span class="badge b-bad">High</span>`;
-  return `<span class="badge b-ok">Normal</span>`;
-}
+function save(){localStorage.setItem(KEY,JSON.stringify(patients));}
 
 /* ===== PATIENT ===== */
 function addPatient(){
   const name=document.getElementById('name').value.trim();
-  const age=document.getElementById('age').value.trim();
-  const gender=document.getElementById('gender').value;
-  const pid=document.getElementById('pid').value.trim() || ('P'+Date.now());
-  if(!name) return alert('Enter name');
-
-  patients.push({name,age,gender,pid,tests:[],created:new Date().toLocaleString()});
+  if(!name)return alert('Enter name');
+  patients.push({name,tests:[]});
   document.getElementById('name').value='';
-  document.getElementById('age').value='';
-  document.getElementById('pid').value='';
-  save(); render();
+  save();render();
 }
 
 function render(){
-  const q=(document.getElementById('search').value||'').toLowerCase();
   const list=document.getElementById('list');
   list.innerHTML='';
-  let tcount=0;
-
-  patients.filter(p => (p.name+p.pid).toLowerCase().includes(q))
-  .forEach((p,i)=>{
-    tcount += p.tests.length;
-    list.innerHTML += `
-      <div class="item" onclick="openP(${i})">
-        <b>${p.name}</b> <span class="small">#${p.pid}</span><br>
-        ${p.gender} | Age: ${p.age} | Tests: ${p.tests.length}
-      </div>`;
+  patients.forEach((p,i)=>{
+    list.innerHTML+=`<div class="item" onclick="openP(${i})">${p.name}</div>`;
   });
-
-  document.getElementById('pc').innerText=patients.length;
-  document.getElementById('tc').innerText=tcount;
 }
 
 /* ===== MODAL ===== */
 function openP(i){
   currentIndex=i;
-  const p=patients[i];
   document.getElementById('modal').style.display='flex';
-  document.getElementById('mname').innerText = p.name + ' (#'+p.pid+')';
-  document.getElementById('meta').innerText = `Age: ${p.age} | Gender: ${p.gender}`;
   buildChecks();
-  showTests();
 }
-function closeM(){ document.getElementById('modal').style.display='none'; }
+function closeM(){document.getElementById('modal').style.display='none';}
 
-/* ===== BUILD FORMS ===== */
+/* ===== CHECKS ===== */
 function buildChecks(){
   const c=document.getElementById('checks');
-  const inputs=document.getElementById('inputs');
-  c.innerHTML=''; inputs.innerHTML='';
-
+  c.innerHTML='';
   TESTS.forEach((t,idx)=>{
-    const id='t_'+idx;
-    c.innerHTML += `<label><input type="checkbox" id="${id}" value="${idx}"> ${t.name}</label>`;
-
-    if(t.type==='text'){
-      inputs.innerHTML += `
-      <div id="in_${idx}" style="display:none">
-      <label>${t.name}</label>
-      <textarea id="val_${idx}" placeholder="Write full report..."></textarea>
-      </div>`;
-    }else{
-      inputs.innerHTML += `
-      <div id="in_${idx}" style="display:none">
-      <label>${t.name} (${t.unit}) [${t.min}-${t.max}]</label>
-      <div class="row">
-      <input id="val_${idx}" placeholder="Value">
-      </div>
-      </div>`;
-    }
-
-    document.addEventListener('change',e=>{
-      if(e.target.id===id){
-        document.getElementById('in_'+idx).style.display = e.target.checked?'block':'none';
-      }
-    });
-  });
-}
-
-/* ===== ADD TESTS ===== */
-function addTests(){
-  const p=patients[currentIndex];
-  let any=false;
-
-  TESTS.forEach((t,idx)=>{
-    const cb=document.getElementById('t_'+idx);
-    if(cb && cb.checked){
-      any=true;
-      const val=document.getElementById('val_'+idx).value;
-
-      p.tests.push({
-        name:t.name,
-        value:val,
-        unit:t.unit,
-        min:t.min,
-        max:t.max,
-        date:new Date().toLocaleString()
-      });
-
-      cb.checked=false;
-      document.getElementById('in_'+idx).style.display='none';
-      document.getElementById('val_'+idx).value='';
-    }
+    c.innerHTML+=`<label><input type="checkbox" id="t_${idx}"> ${t.name}</label>`;
   });
 
-  if(!any) return alert('Select test');
-  save(); showTests(); render();
+  c.addEventListener('change',()=>{});
 }
-
-/* ===== SHOW ===== */
-function showTests(){
-  const p=patients[currentIndex];
-  const box=document.getElementById('tests');
-  box.innerHTML='';
-
-  p.tests.forEach(x=>{
-    if(x.unit){
-      box.innerHTML += `
-      <div class="item">
-        <b>${x.name}</b>
-        ${badge(x.value, x)}
-        <div>${x.value} ${x.unit}</div>
-      </div>`;
-    }else{
-      box.innerHTML += `
-      <div class="item">
-        <b>${x.name}</b>
-        <pre>${x.value}</pre>
-      </div>`;
-    }
-  });
-}
-
-/* ===== PRINT ===== */
-function printReport(){
-  const p=patients[currentIndex];
-  const w=window.open();
-  w.document.write(`<h2>Lab Report</h2><p>${p.name}</p><hr>`);
-  p.tests.forEach(x=>{
-    if(x.unit){
-      w.document.write(`<p>${x.name}: ${x.value} ${x.unit}</p>`);
-    }else{
-      w.document.write(`<pre>${x.value}</pre>`);
-    }
-  });
-  w.print();
-}
-
-/* ===== BACKUP ===== */
-function exportData(){
-  const blob = new Blob([JSON.stringify(patients,null,2)], {type:'application/json'});
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);
-  a.download='backup.json';
-  a.click();
-}
-function importData(e){
-  const f=e.target.files[0];
-  if(!f) return;
-  const r=new FileReader();
-  r.onload=()=>{
-    patients=JSON.parse(r.result);
-    save(); render();
-  };
-  r.readAsText(f);
-}
-
-render();
 </script>
 
-<!-- ===== Privacy & Terms Sections ===== -->
 <footer>
-  <h2 id="privacy">Privacy Policy</h2>
-  <p>
-  LabMaster Global does not collect or store personal data on external servers.
-  All patient data is stored locally on the user's device.
-  </p>
-
-  <h2 id="terms">Terms of Service</h2>
-  <p>
-  This application is for medical data management purposes only and should be used by qualified personnel.
-  </p>
+<h2>Privacy Policy</h2>
+<p>Data stored locally only.</p>
+<h2>Terms</h2>
+<p>For professional use.</p>
 </footer>
+
+<script src="https://sdk.minepi.com/pi-sdk.js"></script>
 
 </body>
 </html>
