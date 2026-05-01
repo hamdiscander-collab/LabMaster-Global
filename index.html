@@ -40,6 +40,8 @@ label{display:block;margin-top:6px}
 .inline{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
 .inline label{background:#0f172a;padding:6px 8px;border-radius:6px}
 pre{white-space:pre-wrap}
+footer{margin-top:20px;padding:12px;background:#0f172a;border-top:1px solid #2a3554}
+a{color:#38bdf8;text-decoration:none}
 </style>
 </head>
 
@@ -130,35 +132,25 @@ function login(){
 }
 
 /* ===== STORAGE ===== */
-const KEY='lab_offline_pro_v2';
+const KEY='lab_offline_pro_v3';
 let patients=JSON.parse(localStorage.getItem(KEY)||'[]');
 let currentIndex=null;
 
 /* ===== TEST CATALOG ===== */
 const TESTS = [
-  /* CBC */
   {name:'Hemoglobin', unit:'g/dL', min:12, max:17},
   {name:'WBC', unit:'10^3/uL', min:4, max:11},
   {name:'RBC', unit:'10^6/uL', min:4, max:6},
   {name:'Platelets', unit:'10^3/uL', min:150, max:450},
-
-  /* BIO */
   {name:'Glucose', unit:'mg/dL', min:70, max:110},
   {name:'Urea', unit:'mg/dL', min:15, max:45},
   {name:'Creatinine', unit:'mg/dL', min:0.6, max:1.3},
-  {name:'Cholesterol', unit:'mg/dL', min:0, max:200},
-
-  /* LIVER */
   {name:'ALT', unit:'U/L', min:7, max:56},
   {name:'AST', unit:'U/L', min:10, max:40},
-
-  /* HORMONES */
   {name:'TSH', unit:'mIU/L', min:0.4, max:4.0},
-
-  /* TEXT REPORTS */
-  {name:'Urine Analysis', type:'urine'},
-  {name:'Stool Analysis', type:'stool'},
-  {name:'Semen Analysis', type:'semen'}
+  {name:'Urine Analysis', type:'text'},
+  {name:'Stool Analysis', type:'text'},
+  {name:'Semen Analysis', type:'text'}
 ];
 
 /* ===== HELPERS ===== */
@@ -216,7 +208,6 @@ function openP(i){
   buildChecks();
   showTests();
 }
-
 function closeM(){ document.getElementById('modal').style.display='none'; }
 
 /* ===== BUILD FORMS ===== */
@@ -229,51 +220,18 @@ function buildChecks(){
     const id='t_'+idx;
     c.innerHTML += `<label><input type="checkbox" id="${id}" value="${idx}"> ${t.name}</label>`;
 
-    if(t.type==='urine'){
+    if(t.type==='text'){
       inputs.innerHTML += `
       <div id="in_${idx}" style="display:none">
-      <label>Urine Analysis</label>
-      <textarea id="val_${idx}" placeholder="Color:
-Appearance:
-pH:
-RBC:
-WBC:
-Bacteria:
-Crystals:
-Others:"></textarea>
+      <label>${t.name}</label>
+      <textarea id="val_${idx}" placeholder="Write full report..."></textarea>
       </div>`;
-    }
-    else if(t.type==='stool'){
-      inputs.innerHTML += `
-      <div id="in_${idx}" style="display:none">
-      <label>Stool Analysis</label>
-      <textarea id="val_${idx}" placeholder="Color:
-Consistency:
-RBC:
-WBC:
-Parasites:
-Others:"></textarea>
-      </div>`;
-    }
-    else if(t.type==='semen'){
-      inputs.innerHTML += `
-      <div id="in_${idx}" style="display:none">
-      <label>Semen Analysis</label>
-      <textarea id="val_${idx}" placeholder="Volume:
-Count:
-Motility:
-Morphology:
-pH:
-Others:"></textarea>
-      </div>`;
-    }
-    else{
+    }else{
       inputs.innerHTML += `
       <div id="in_${idx}" style="display:none">
       <label>${t.name} (${t.unit}) [${t.min}-${t.max}]</label>
       <div class="row">
       <input id="val_${idx}" placeholder="Value">
-      <input id="note_${idx}" placeholder="Note">
       </div>
       </div>`;
     }
@@ -344,9 +302,7 @@ function showTests(){
 function printReport(){
   const p=patients[currentIndex];
   const w=window.open();
-
   w.document.write(`<h2>Lab Report</h2><p>${p.name}</p><hr>`);
-
   p.tests.forEach(x=>{
     if(x.unit){
       w.document.write(`<p>${x.name}: ${x.value} ${x.unit}</p>`);
@@ -354,7 +310,6 @@ function printReport(){
       w.document.write(`<pre>${x.value}</pre>`);
     }
   });
-
   w.print();
 }
 
@@ -379,6 +334,20 @@ function importData(e){
 
 render();
 </script>
+
+<!-- ===== Privacy & Terms Sections ===== -->
+<footer>
+  <h2 id="privacy">Privacy Policy</h2>
+  <p>
+  LabMaster Global does not collect or store personal data on external servers.
+  All patient data is stored locally on the user's device.
+  </p>
+
+  <h2 id="terms">Terms of Service</h2>
+  <p>
+  This application is for medical data management purposes only and should be used by qualified personnel.
+  </p>
+</footer>
 
 </body>
 </html>
