@@ -2,54 +2,47 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>LabMaster Global - Pi Version</title>
+<title>LabMaster Global - Pi Cloud</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-
 <style>
-:root{
-  --bg:#0b1220; --card:#111c33; --muted:#1e293b; --accent:#38bdf8;
-  --ok:#22c55e; --warn:#f59e0b; --bad:#ef4444;
-}
-*{box-sizing:border-box}
-body{margin:0;font-family:Arial;background:var(--bg);color:#fff}
-header{background:var(--card);padding:14px;text-align:center;color:var(--accent)}
+body{margin:0;font-family:Arial;background:#0b1220;color:#fff}
+header{background:#111c33;padding:12px;text-align:center;color:#38bdf8}
 .wrap{padding:12px}
-.card{background:var(--card);padding:12px;border-radius:10px}
-button{width:100%;padding:12px;margin-top:10px;border:none;border-radius:6px;background:var(--ok);color:#fff;font-weight:bold}
+.card{background:#111c33;padding:12px;border-radius:10px;margin-bottom:10px}
+button{width:100%;padding:10px;margin-top:8px;border:none;border-radius:6px;background:#22c55e;color:#fff}
 input{width:100%;padding:10px;margin-top:6px;border-radius:6px;border:none}
 .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.8)}
-.boxm{background:var(--card);padding:20px;border-radius:10px;text-align:center}
+.boxm{background:#111c33;padding:20px;border-radius:10px;text-align:center}
 </style>
 </head>
 
 <body>
 
-<!-- LOADING -->
 <div id="loader" style="position:fixed;inset:0;background:#0b1220;display:flex;align-items:center;justify-content:center;color:#38bdf8;font-size:20px;z-index:9999;">
-Loading LabMaster...
+Loading...
 </div>
 
-<!-- LOGIN -->
 <div id="login" class="modal">
   <div class="boxm">
     <h2>LabMaster Login</h2>
-    <button onclick="loginWithPi()" style="background:#facc15;color:#000">
-      🔐 Login with Pi
-    </button>
-    <p class="small">Secure access via Pi Network</p>
+    <button onclick="loginWithPi()" style="background:#facc15;color:#000">🔐 Login with Pi</button>
   </div>
 </div>
 
-<header>🧪 LabMaster (Pi Edition)</header>
+<header>🧪 LabMaster Cloud</header>
 
 <div class="wrap" id="app" style="display:none">
   <div class="card">
-    <h3 id="welcome">Welcome</h3>
+    <h3 id="welcome"></h3>
+    <button onclick="logout()" style="background:#ef4444">Logout</button>
+  </div>
+
+  <div class="card">
     <input id="name" placeholder="Patient Name">
     <button onclick="addPatient()">Add Patient</button>
   </div>
 
-  <div class="card" style="margin-top:10px">
+  <div class="card">
     <h3>Patients</h3>
     <div id="list"></div>
   </div>
@@ -58,75 +51,85 @@ Loading LabMaster...
 <script src="https://sdk.minepi.com/pi-sdk.js"></script>
 
 <script>
-/* ===== INIT ===== */
-window.addEventListener("load", () => {
-  setTimeout(() => {
+let currentUser=null;
+let accessToken=null;
+const API="https://YOUR-SERVER.onrender.com"; // 🔴 غير هذا
+
+window.onload = async ()=>{
+  setTimeout(()=>{
     document.getElementById("loader").style.display="none";
+  },500);
 
-    const user = localStorage.getItem("pi_user");
+  try{Pi.init({version:"2.0"})}catch(e){}
 
-    if(user){
-      startApp(JSON.parse(user));
-    } else {
-      document.getElementById("login").style.display="flex";
-    }
+  const saved=localStorage.getItem("pi_user");
+  if(saved){
+    currentUser=JSON.parse(saved);
+    startApp(currentUser);
+  }else{
+    document.getElementById("login").style.display="flex";
+  }
+};
 
-  }, 500);
-});
-
-/* ===== PI INIT ===== */
-try {
-  Pi.init({ version: "2.0" });
-} catch(e){
-  console.log("Pi not available");
-}
-
-/* ===== LOGIN ===== */
 async function loginWithPi(){
   try{
-    const auth = await Pi.authenticate(['username'], function(){});
-    const user = auth.user;
+    const auth=await Pi.authenticate(['username'],()=>{});
+    currentUser=auth.user;
+    accessToken=auth.accessToken;
 
-    localStorage.setItem("pi_user", JSON.stringify(user));
-    startApp(user);
+    localStorage.setItem("pi_user",JSON.stringify(currentUser));
+    localStorage.setItem("pi_token",accessToken);
+
+    await verifyUser();
+    startApp(currentUser);
 
   }catch(e){
     alert("Login failed");
   }
 }
 
-/* ===== START APP ===== */
+async function verifyUser(){
+  await fetch(API+"/verify",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({accessToken})
+  });
+}
+
 function startApp(user){
   document.getElementById("login").style.display="none";
   document.getElementById("app").style.display="block";
-  document.getElementById("welcome").innerText = "Welcome " + user.username;
-  render();
+  document.getElementById("welcome").innerText="Welcome "+user.username;
+  loadPatients();
 }
 
-/* ===== DATA ===== */
-let patients = JSON.parse(localStorage.getItem("patients")||"[]");
-
-function save(){
-  localStorage.setItem("patients", JSON.stringify(patients));
+function logout(){
+  localStorage.clear();
+  location.reload();
 }
 
-/* ===== ADD ===== */
-function addPatient(){
-  const name = document.getElementById("name").value;
-  if(!name) return alert("Enter name");
+async function addPatient(){
+  const name=document.getElementById("name").value;
+  if(!name)return alert("Enter name");
 
-  patients.push({name});
+  await fetch(API+"/patients",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({name,username:currentUser.username})
+  });
+
   document.getElementById("name").value="";
-  save();
-  render();
+  loadPatients();
 }
 
-/* ===== RENDER ===== */
-function render(){
-  const list = document.getElementById("list");
+async function loadPatients(){
+  const res=await fetch(API+"/patients/"+currentUser.username);
+  const data=await res.json();
+
+  const list=document.getElementById("list");
   list.innerHTML="";
-  patients.forEach(p=>{
-    list.innerHTML += "<div style='background:#1e293b;padding:10px;margin-top:5px;border-radius:6px'>"+p.name+"</div>";
+  data.forEach(p=>{
+    list.innerHTML+=`<div style="background:#1e293b;padding:10px;margin-top:5px;border-radius:6px">${p.name}</div>`;
   });
 }
 </script>
