@@ -1,156 +1,117 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8">
-<title>LabMaster Cloud Pi</title>
+<title>AI Hospital System</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <style>
 body{margin:0;font-family:Arial;background:#0b1220;color:#fff}
-header{background:#111c33;padding:12px;text-align:center;color:#38bdf8}
-.wrap{padding:12px}
-.card{background:#111c33;padding:12px;border-radius:10px;margin-bottom:10px}
-button{width:100%;padding:10px;margin-top:8px;border:none;border-radius:6px;background:#22c55e;color:#fff;font-weight:bold}
-input{width:100%;padding:10px;margin-top:6px;border-radius:6px;border:none}
-.modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.8)}
-.boxm{background:#111c33;padding:20px;border-radius:10px;text-align:center;width:90%;max-width:400px}
-.small{font-size:12px;opacity:.7}
+header{padding:12px;text-align:center;background:#111c33;color:#38bdf8}
+.wrap{padding:10px}
+.card{background:#111c33;padding:12px;margin-bottom:10px;border-radius:10px}
+input,button{width:100%;padding:10px;margin-top:6px;border:none;border-radius:6px}
+button{background:#22c55e;color:#fff;font-weight:bold}
+.alert{color:#ef4444;font-weight:bold}
+.ok{color:#22c55e}
 </style>
 </head>
 
 <body>
 
-<!-- LOADER -->
-<div id="loader" style="position:fixed;inset:0;background:#0b1220;display:flex;align-items:center;justify-content:center;color:#38bdf8;font-size:18px;z-index:9999;">
-Loading LabMaster...
-</div>
+<header>🧠 AI Smart Hospital System</header>
 
-<!-- LOGIN -->
-<div id="login" class="modal">
-  <div class="boxm">
-    <h3>Login with Pi</h3>
-    <button onclick="loginWithPi()" style="background:#facc15;color:#000">
-      🔐 Login with Pi
-    </button>
-    <p class="small">Secure Pi Authentication</p>
-  </div>
-</div>
-
-<header>🧪 LabMaster Cloud System</header>
-
-<div class="wrap" id="app" style="display:none">
+<div class="wrap">
 
   <div class="card">
-    <h3 id="welcome"></h3>
-    <button onclick="logout()" style="background:#ef4444">Logout</button>
+    <h3>AI Dashboard</h3>
+    <div id="dash">Loading...</div>
   </div>
 
   <div class="card">
-    <input id="name" placeholder="Patient Name">
-    <button onclick="addPatient()">Add Patient</button>
+    <h3>Add Patient</h3>
+    <input id="name" placeholder="Name">
+    <input id="age" placeholder="Age">
+    <button onclick="addPatient()">Add</button>
   </div>
 
   <div class="card">
-    <h3>Patients</h3>
-    <div id="list"></div>
+    <h3>Lab Test (AI Analysis)</h3>
+
+    <input id="hb" placeholder="Hemoglobin">
+    <input id="wbc" placeholder="WBC">
+    <input id="glucose" placeholder="Glucose">
+    <input id="creatinine" placeholder="Creatinine">
+
+    <button onclick="sendLab()">Analyze</button>
+
+    <div id="result"></div>
   </div>
 
 </div>
-
-<script src="https://sdk.minepi.com/pi-sdk.js"></script>
 
 <script>
 
-const API = "https://labmaster-global3.onrender.com"; // ✔️ مدمج جاهز
+const API="https://labmaster-global3.onrender.com";
 
-let currentUser = null;
+/* ===== DASHBOARD ===== */
+async function loadDash(){
+  const res=await fetch(API+"/ai/dashboard/admin");
+  const data=await res.json();
 
-/* ===== INIT ===== */
-window.onload = () => {
-  setTimeout(() => {
-    document.getElementById("loader").style.display = "none";
-  }, 500);
-
-  try { Pi.init({ version: "2.0" }); } catch(e){}
-
-  const saved = localStorage.getItem("pi_user");
-  if(saved){
-    currentUser = JSON.parse(saved);
-    startApp(currentUser);
-  } else {
-    document.getElementById("login").style.display = "flex";
-  }
-};
-
-/* ===== LOGIN ===== */
-async function loginWithPi(){
-  try{
-    const auth = await Pi.authenticate(['username'], ()=>{});
-    currentUser = auth.user;
-
-    localStorage.setItem("pi_user", JSON.stringify(currentUser));
-
-    await fetch(API + "/verify", {
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({accessToken: auth.accessToken})
-    });
-
-    startApp(currentUser);
-
-  } catch(e){
-    alert("Login failed");
-  }
+  document.getElementById("dash").innerHTML=`
+    Total Labs: ${data.totalLabs}<br>
+    Critical Cases: ${data.criticalCases}<br>
+    Status: <b>${data.status}</b>
+  `;
 }
 
-/* ===== START APP ===== */
-function startApp(user){
-  document.getElementById("login").style.display="none";
-  document.getElementById("app").style.display="block";
-  document.getElementById("welcome").innerText = "Welcome " + user.username;
-  loadPatients();
-}
-
-/* ===== LOGOUT ===== */
-function logout(){
-  localStorage.clear();
-  location.reload();
-}
-
-/* ===== ADD PATIENT ===== */
+/* ===== PATIENT ===== */
 async function addPatient(){
-  const name = document.getElementById("name").value;
-  if(!name) return alert("Enter name");
-
-  await fetch(API + "/patients", {
+  await fetch(API+"/patient",{
     method:"POST",
     headers:{"Content-Type":"application/json"},
     body:JSON.stringify({
-      name,
-      username: currentUser.username
+      user:"admin",
+      patient:{
+        name:document.getElementById("name").value,
+        age:document.getElementById("age").value
+      }
     })
   });
 
-  document.getElementById("name").value="";
-  loadPatients();
+  alert("Patient Added");
 }
 
-/* ===== LOAD PATIENTS ===== */
-async function loadPatients(){
-  const res = await fetch(API + "/patients/" + currentUser.username);
-  const data = await res.json();
+/* ===== AI LAB ===== */
+async function sendLab(){
 
-  const list = document.getElementById("list");
-  list.innerHTML = "";
+  const results={
+    hb:parseFloat(document.getElementById("hb").value),
+    wbc:parseFloat(document.getElementById("wbc").value),
+    glucose:parseFloat(document.getElementById("glucose").value),
+    creatinine:parseFloat(document.getElementById("creatinine").value)
+  };
 
-  data.forEach(p=>{
-    list.innerHTML += `
-      <div style="background:#1e293b;padding:10px;margin-top:6px;border-radius:6px">
-        ${p.name}
-      </div>
-    `;
+  const res=await fetch(API+"/lab",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({
+      user:"admin",
+      patientId:1,
+      results
+    })
   });
+
+  const data=await res.json();
+
+  document.getElementById("result").innerHTML=`
+    <div class="alert">Alerts: ${data.ai.alerts.join(", ")}</div>
+    <div>Diagnosis: ${data.ai.diagnosis.join(", ")}</div>
+  `;
 }
+
+loadDash();
 
 </script>
 
