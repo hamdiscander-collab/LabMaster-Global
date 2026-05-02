@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>LabMaster Global Offline Pro</title>
+<title>LabMaster Global - Pi Version</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <style>
@@ -11,43 +11,20 @@
   --ok:#22c55e; --warn:#f59e0b; --bad:#ef4444;
 }
 *{box-sizing:border-box}
-body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:#fff}
-header{background:var(--card);padding:14px;text-align:center;font-weight:bold;color:var(--accent)}
+body{margin:0;font-family:Arial;background:var(--bg);color:#fff}
+header{background:var(--card);padding:14px;text-align:center;color:var(--accent)}
 .wrap{padding:12px}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .card{background:var(--card);padding:12px;border-radius:10px}
-input,select,textarea{width:100%;padding:10px;margin-top:6px;border-radius:6px;border:none}
-button{width:100%;padding:10px;margin-top:8px;border:none;border-radius:6px;background:var(--ok);color:#fff;font-weight:bold;cursor:pointer}
-button.secondary{background:#64748b}
-button.warn{background:var(--warn)}
-button.danger{background:var(--bad)}
-button:hover{filter:brightness(.95)}
-.list .item{background:var(--muted);padding:10px;margin-top:8px;border-radius:8px;cursor:pointer}
-.list .item:hover{background:#273556}
-.top{display:flex;gap:10px;justify-content:center;margin-bottom:8px}
-.box{background:var(--muted);padding:8px 14px;border-radius:8px;text-align:center}
-.small{opacity:.8;font-size:12px}
-.badge{padding:2px 6px;border-radius:6px;font-size:12px;margin-left:6px}
-.b-ok{background:rgba(34,197,94,.2);color:#22c55e}
-.b-warn{background:rgba(245,158,11,.2);color:#f59e0b}
-.b-bad{background:rgba(239,68,68,.2);color:#ef4444}
+button{width:100%;padding:12px;margin-top:10px;border:none;border-radius:6px;background:var(--ok);color:#fff;font-weight:bold}
+input{width:100%;padding:10px;margin-top:6px;border-radius:6px;border:none}
 .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.8)}
-.modal .boxm{background:var(--card);padding:14px;border-radius:10px;width:95%;max-width:560px;max-height:90vh;overflow:auto}
-.row{display:flex;gap:6px}
-.row > *{flex:1}
-hr{border:0;border-top:1px solid #2a3554;margin:10px 0}
-label{display:block;margin-top:6px}
-.inline{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
-.inline label{background:#0f172a;padding:6px 8px;border-radius:6px}
-pre{white-space:pre-wrap}
-footer{margin-top:20px;padding:12px;background:#0f172a;border-top:1px solid #2a3554}
-a{color:#38bdf8;text-decoration:none}
+.boxm{background:var(--card);padding:20px;border-radius:10px;text-align:center}
 </style>
 </head>
 
 <body>
 
-<!-- LOADER -->
+<!-- LOADING -->
 <div id="loader" style="position:fixed;inset:0;background:#0b1220;display:flex;align-items:center;justify-content:center;color:#38bdf8;font-size:20px;z-index:9999;">
 Loading LabMaster...
 </div>
@@ -55,168 +32,104 @@ Loading LabMaster...
 <!-- LOGIN -->
 <div id="login" class="modal">
   <div class="boxm">
-    <h3>LabMaster Login</h3>
-    <input id="u" placeholder="Username">
-    <input id="p" type="password" placeholder="Password">
-    <button onclick="login()">Login</button>
-    <div class="small">Demo: admin / 1234</div>
+    <h2>LabMaster Login</h2>
+    <button onclick="loginWithPi()" style="background:#facc15;color:#000">
+      🔐 Login with Pi
+    </button>
+    <p class="small">Secure access via Pi Network</p>
   </div>
 </div>
 
-<header>🧪 LabMaster Global — Offline Pro</header>
+<header>🧪 LabMaster (Pi Edition)</header>
 
 <div class="wrap" id="app" style="display:none">
-
-  <div class="top">
-    <div class="box">Patients<br><b id="pc">0</b></div>
-    <div class="box">Tests<br><b id="tc">0</b></div>
+  <div class="card">
+    <h3 id="welcome">Welcome</h3>
+    <input id="name" placeholder="Patient Name">
+    <button onclick="addPatient()">Add Patient</button>
   </div>
 
-  <div class="grid">
-
-    <div class="card">
-      <h3>Add Patient</h3>
-      <input id="name" placeholder="Name">
-      <div class="row">
-        <input id="age" placeholder="Age">
-        <select id="gender">
-          <option>Male</option>
-          <option>Female</option>
-        </select>
-      </div>
-      <input id="pid" placeholder="Patient ID (optional)">
-      <button onclick="addPatient()">Save Patient</button>
-      <button class="secondary" onclick="exportData()">Backup (Export JSON)</button>
-      <input type="file" accept="application/json" onchange="importData(event)">
-    </div>
-
-    <div class="card">
-      <h3>Patients</h3>
-      <input id="search" onkeyup="render()" placeholder="Search by name or ID">
-      <div id="list" class="list"></div>
-    </div>
-
+  <div class="card" style="margin-top:10px">
+    <h3>Patients</h3>
+    <div id="list"></div>
   </div>
 </div>
 
-<div id="modal" class="modal">
-  <div class="boxm">
-    <h3 id="mname"></h3>
-    <div class="small" id="meta"></div>
-
-    <hr>
-
-    <h4>Select Tests</h4>
-    <div class="inline" id="checks"></div>
-
-    <h4>Enter Results</h4>
-    <div id="inputs"></div>
-
-    <button onclick="addTests()">Save Selected Tests</button>
-    <button class="secondary" onclick="printReport()">Print Report</button>
-    <button class="secondary" onclick="closeM()">Close</button>
-
-    <hr>
-    <div id="tests"></div>
-  </div>
-</div>
+<script src="https://sdk.minepi.com/pi-sdk.js"></script>
 
 <script>
-/* ===== INIT AFTER LOAD ===== */
+/* ===== INIT ===== */
 window.addEventListener("load", () => {
   setTimeout(() => {
-    document.getElementById("loader").style.display = "none";
-    document.getElementById("login").style.display = "flex";
-    render();
-  }, 300);
+    document.getElementById("loader").style.display="none";
+
+    const user = localStorage.getItem("pi_user");
+
+    if(user){
+      startApp(JSON.parse(user));
+    } else {
+      document.getElementById("login").style.display="flex";
+    }
+
+  }, 500);
 });
 
-/* ===== PI SDK ===== */
+/* ===== PI INIT ===== */
 try {
   Pi.init({ version: "2.0" });
 } catch(e){
-  console.log("Pi SDK not available");
+  console.log("Pi not available");
 }
 
-/* ===== AUTH ===== */
-function login(){
-  const u=document.getElementById('u').value;
-  const p=document.getElementById('p').value;
-  if(u==='admin' && p==='1234'){
-    document.getElementById('login').style.display='none';
-    document.getElementById('app').style.display='block';
-  } else alert('Wrong login');
+/* ===== LOGIN ===== */
+async function loginWithPi(){
+  try{
+    const auth = await Pi.authenticate(['username'], function(){});
+    const user = auth.user;
+
+    localStorage.setItem("pi_user", JSON.stringify(user));
+    startApp(user);
+
+  }catch(e){
+    alert("Login failed");
+  }
 }
 
-/* ===== STORAGE ===== */
-const KEY='lab_offline_pro_v3';
-let patients=JSON.parse(localStorage.getItem(KEY)||'[]');
-let currentIndex=null;
+/* ===== START APP ===== */
+function startApp(user){
+  document.getElementById("login").style.display="none";
+  document.getElementById("app").style.display="block";
+  document.getElementById("welcome").innerText = "Welcome " + user.username;
+  render();
+}
 
-/* ===== TESTS ===== */
-const TESTS=[
-{name:'Hemoglobin',unit:'g/dL',min:12,max:17},
-{name:'WBC',unit:'10^3/uL',min:4,max:11},
-{name:'RBC',unit:'10^6/uL',min:4,max:6},
-{name:'Platelets',unit:'10^3/uL',min:150,max:450},
-{name:'Glucose',unit:'mg/dL',min:70,max:110},
-{name:'Urea',unit:'mg/dL',min:15,max:45},
-{name:'Creatinine',unit:'mg/dL',min:0.6,max:1.3},
-{name:'ALT',unit:'U/L',min:7,max:56},
-{name:'AST',unit:'U/L',min:10,max:40},
-{name:'TSH',unit:'mIU/L',min:0.4,max:4.0},
-{name:'Urine Analysis',type:'text'},
-{name:'Stool Analysis',type:'text'},
-{name:'Semen Analysis',type:'text'}
-];
+/* ===== DATA ===== */
+let patients = JSON.parse(localStorage.getItem("patients")||"[]");
 
-function save(){localStorage.setItem(KEY,JSON.stringify(patients));}
+function save(){
+  localStorage.setItem("patients", JSON.stringify(patients));
+}
 
-/* ===== PATIENT ===== */
+/* ===== ADD ===== */
 function addPatient(){
-  const name=document.getElementById('name').value.trim();
-  if(!name)return alert('Enter name');
-  patients.push({name,tests:[]});
-  document.getElementById('name').value='';
-  save();render();
+  const name = document.getElementById("name").value;
+  if(!name) return alert("Enter name");
+
+  patients.push({name});
+  document.getElementById("name").value="";
+  save();
+  render();
 }
 
+/* ===== RENDER ===== */
 function render(){
-  const list=document.getElementById('list');
-  list.innerHTML='';
-  patients.forEach((p,i)=>{
-    list.innerHTML+=`<div class="item" onclick="openP(${i})">${p.name}</div>`;
+  const list = document.getElementById("list");
+  list.innerHTML="";
+  patients.forEach(p=>{
+    list.innerHTML += "<div style='background:#1e293b;padding:10px;margin-top:5px;border-radius:6px'>"+p.name+"</div>";
   });
-}
-
-/* ===== MODAL ===== */
-function openP(i){
-  currentIndex=i;
-  document.getElementById('modal').style.display='flex';
-  buildChecks();
-}
-function closeM(){document.getElementById('modal').style.display='none';}
-
-/* ===== CHECKS ===== */
-function buildChecks(){
-  const c=document.getElementById('checks');
-  c.innerHTML='';
-  TESTS.forEach((t,idx)=>{
-    c.innerHTML+=`<label><input type="checkbox" id="t_${idx}"> ${t.name}</label>`;
-  });
-
-  c.addEventListener('change',()=>{});
 }
 </script>
-
-<footer>
-<h2>Privacy Policy</h2>
-<p>Data stored locally only.</p>
-<h2>Terms</h2>
-<p>For professional use.</p>
-</footer>
-
-<script src="https://sdk.minepi.com/pi-sdk.js"></script>
 
 </body>
 </html>
